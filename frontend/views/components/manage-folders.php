@@ -39,7 +39,10 @@ if ( ! defined( 'WPINC' ) ) {
                     $folder_name = is_array($folder) ? $folder['name'] : $folder;
                     $folder_location = ( is_array($folder) && ! empty($folder['location']) ) ? ' <span class="ecp-folder-location">(' . esc_html($folder['location']) . ')</span>' : '';
                 ?>
-                    <li><?php echo esc_html($folder_name) . $folder_location; ?> <button class="button-link-delete ecp-delete-link" data-action="delete_folder" data-folder="<?php echo esc_attr($folder_name); ?>">(x)</button></li>
+                    <li><?php echo esc_html($folder_name) . $folder_location; ?> 
+                        <?php // ** FIX: Changed class from ecp-delete-link to ecp-delete-folder-btn to match JS handler ** ?>
+                        <button class="button-link-delete ecp-delete-folder-btn" data-folder="<?php echo esc_attr($folder_name); ?>" data-location="<?php echo esc_attr(is_array($folder) ? $folder['location'] : ''); ?>">(x)</button>
+                    </li>
                 <?php endforeach; ?>
             </ul>
         <?php endif; ?>

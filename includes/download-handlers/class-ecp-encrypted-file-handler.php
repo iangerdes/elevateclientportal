@@ -4,7 +4,8 @@
  * Handles download requests for encrypted files.
  *
  * @package Elevate_Client_Portal
- * @version 42.0.0 (Final Audit & Refactor)
+ * @version 62.0.0
+ * @comment Added a `is_wp_error` check to properly handle cases where the file isn't found or the user lacks permission, preventing a fatal error.
  */
 
 if ( ! defined( 'WPINC' ) ) {
@@ -14,22 +15,28 @@ if ( ! defined( 'WPINC' ) ) {
 class ECP_Encrypted_File_Handler {
     
     public function process() {
-        if ( ! ECP_Security_Helper::verify_nonce('decrypt_file') ) {
-            wp_die( 'Security check failed.', 403 );
-        }
-
+        // Nonce is checked inside the helper for POST requests
         $file_key = isset( $_REQUEST['file_key'] ) ? sanitize_text_field( urldecode( $_REQUEST['file_key'] ) ) : '';
         $password = isset( $_POST['password'] ) ? wp_unslash( $_POST['password'] ) : '';
         $target_user_id = isset( $_REQUEST['target_user_id'] ) ? intval( $_REQUEST['target_user_id'] ) : 0;
 
         if ( empty( $file_key ) || empty( $password ) ) {
-            wp_die( 'Invalid request.', 400 );
+             wp_die( 'Invalid request.', 400 );
+        }
+
+        // Security check for the form submission
+        if ( ! isset( $_POST['nonce'] ) || ! ECP_Security_Helper::verify_nonce('decrypt_file', 'nonce') ) {
+            wp_die( 'Security check failed.', 403 );
         }
 
         $file_info = ECP_File_Helper::find_and_authorize_file( $file_key, $target_user_id );
         
-        if ( ! $file_info || empty( $file_info['is_encrypted'] ) ) {
-            wp_die( 'File not found, not encrypted, or permission denied.', 404 );
+        if ( is_wp_error( $file_info ) ) {
+            wp_die( $file_info->get_error_message(), 404 );
+        }
+        
+        if ( empty( $file_info['is_encrypted'] ) ) {
+            wp_die( 'This file is not encrypted.', 403 );
         }
 
         $file_contents = ECP_File_Operations::get_file_contents( $file_info );
@@ -56,7 +63,9 @@ class ECP_Encrypted_File_Handler {
         header( 'Pragma: public' );
         header( 'Content-Length: ' . strlen( $decrypted_contents ) );
         
-        ob_clean();
+        if ( ob_get_level() ) {
+            ob_clean();
+        }
         flush();
         echo $decrypted_contents;
         exit;

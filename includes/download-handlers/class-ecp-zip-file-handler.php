@@ -4,7 +4,8 @@
  * Handles all secure ZIP archive download requests.
  *
  * @package Elevate_Client_Portal
- * @version 18.0.0
+ * @version 62.0.0
+ * @comment Added a check to ensure output buffering is only cleared if it's active, preventing a PHP notice in the error logs.
  */
 
 if ( ! defined( 'WPINC' ) ) {
@@ -51,7 +52,10 @@ class ECP_Zip_File_Handler {
         header( 'Cache-Control: must-revalidate' );
         header( 'Pragma: public' );
         header( 'Content-Length: ' . filesize( $zip_filepath ) );
-        ob_clean();
+        
+        if ( ob_get_level() ) {
+            ob_clean();
+        }
         flush();
         readfile( $zip_filepath );
 

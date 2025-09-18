@@ -4,7 +4,8 @@
  * Handles all secure, standard (non-encrypted) file download requests.
  *
  * @package Elevate_Client_Portal
- * @version 18.0.0
+ * @version 62.0.0
+ * @comment Added `is_wp_error` check to properly handle cases where the file isn't found or the user lacks permission.
  */
 
 if ( ! defined( 'WPINC' ) ) {
@@ -75,7 +76,9 @@ class ECP_Standard_File_Handler {
         header( 'Cache-Control: must-revalidate' );
         header( 'Pragma: public' );
         header( 'Content-Length: ' . filesize( $file_data['path'] ) );
-        ob_clean();
+        if ( ob_get_level() ) {
+            ob_clean();
+        }
         flush();
         readfile( $file_data['path'] );
         exit;

@@ -4,7 +4,8 @@
  * Component file for rendering the file manager tables in the admin dashboard.
  *
  * @package Elevate_Client_Portal
- * @version 23.0.0 (Final Audit & Encryption Fix)
+ * @version 53.0.0
+ * @comment Corrected the class on the single file delete button from 'ecp-delete-folder-btn' to 'ecp-single-file-action-btn'. This ensures the correct JavaScript handler is triggered and the proper confirmation message for deleting a file (not a folder) is shown.
  */
 
 if ( ! defined( 'WPINC' ) ) {
@@ -55,12 +56,13 @@ function ecp_render_single_user_table_rows($user_id, $folder_filter = 'all') {
                 <td data-label="<?php _e('Date Uploaded', 'ecp'); ?>"><?php echo esc_html(date_i18n(get_option('date_format'), $file['timestamp'])); ?></td>
                 <td data-label="<?php _e('Actions', 'ecp'); ?>" class="ecp-actions-cell">
                     <?php if ($is_encrypted): ?>
-                        <button class="button button-small ecp-decrypt-file-btn" data-filekey="<?php echo esc_attr($file_key); ?>"><?php _e('Decrypt', 'ecp'); ?></button>
+                        <button class="button button-small ecp-single-file-action-btn" data-action="decrypt" data-filekey="<?php echo esc_attr($file_key); ?>"><?php _e('Decrypt', 'ecp'); ?></button>
+                        <a href="#" class="button button-small ecp-download-encrypted-btn" data-filekey="<?php echo esc_attr($file_key); ?>"><?php _e('Download', 'ecp'); ?></a>
                     <?php else: ?>
-                        <button class="button button-small ecp-encrypt-file-btn" data-filekey="<?php echo esc_attr($file_key); ?>"><?php _e('Encrypt', 'ecp'); ?></button>
+                        <button class="button button-small ecp-single-file-action-btn" data-action="encrypt" data-filekey="<?php echo esc_attr($file_key); ?>"><?php _e('Encrypt', 'ecp'); ?></button>
+                        <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(['ecp_action' => 'download_file', 'file_key' => $file_key, 'target_user_id' => $user_id], home_url()), 'ecp_download_file_nonce')); ?>" class="button button-small"><?php _e('Download', 'ecp'); ?></a>
                     <?php endif; ?>
-                    <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(['ecp_action' => 'download_file', 'file_key' => $file_key, 'target_user_id' => $user_id], home_url()), 'ecp_download_file_nonce')); ?>" class="button button-small"><?php _e('Download', 'ecp'); ?></a>
-                    <button class="button-link-delete ecp-delete-link" data-action="delete_file" data-filekey="<?php echo esc_attr($file_key); ?>"><?php _e('Delete', 'ecp'); ?></button>
+                    <button class="button-link-delete ecp-single-file-action-btn" data-action="delete" data-filekey="<?php echo esc_attr($file_key); ?>"><?php _e('Delete', 'ecp'); ?></button>
                 </td>
             </tr>
         <?php }
@@ -115,12 +117,13 @@ function ecp_render_all_users_table_rows($folder_filter = 'all') {
                 <td data-label="<?php _e('Date Uploaded', 'ecp'); ?>"><?php echo esc_html(date_i18n(get_option('date_format'), $file['timestamp'])); ?></td>
                 <td data-label="<?php _e('Actions', 'ecp'); ?>" class="ecp-actions-cell">
                     <?php if ($is_encrypted): ?>
-                        <button class="button button-small ecp-decrypt-file-btn" data-filekey="<?php echo esc_attr($file_key); ?>"><?php _e('Decrypt', 'ecp'); ?></button>
+                         <button class="button button-small ecp-single-file-action-btn" data-action="decrypt" data-filekey="<?php echo esc_attr($file_key); ?>"><?php _e('Decrypt', 'ecp'); ?></button>
+                        <a href="#" class="button button-small ecp-download-encrypted-btn" data-filekey="<?php echo esc_attr($file_key); ?>"><?php _e('Download', 'ecp'); ?></a>
                     <?php else: ?>
-                        <button class="button button-small ecp-encrypt-file-btn" data-filekey="<?php echo esc_attr($file_key); ?>"><?php _e('Encrypt', 'ecp'); ?></button>
+                        <button class="button button-small ecp-single-file-action-btn" data-action="encrypt" data-filekey="<?php echo esc_attr($file_key); ?>"><?php _e('Encrypt', 'ecp'); ?></button>
+                        <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(['ecp_action' => 'download_file', 'file_key' => $file_key, 'target_user_id' => 0], home_url()), 'ecp_download_file_nonce')); ?>" class="button button-small"><?php _e('Download', 'ecp'); ?></a>
                     <?php endif; ?>
-                    <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(['ecp_action' => 'download_file', 'file_key' => $file_key, 'target_user_id' => 0], home_url()), 'ecp_download_file_nonce')); ?>" class="button button-small"><?php _e('Download', 'ecp'); ?></a>
-                    <button class="button-link-delete ecp-delete-link" data-action="delete_file" data-filekey="<?php echo esc_attr($file_key); ?>"><?php _e('Delete', 'ecp'); ?></button>
+                    <button class="button-link-delete ecp-single-file-action-btn" data-action="delete" data-filekey="<?php echo esc_attr($file_key); ?>"><?php _e('Delete', 'ecp'); ?></button>
                 </td>
             </tr>
         <?php }

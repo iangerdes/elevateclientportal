@@ -4,7 +4,8 @@
  * View template for the single-user File Manager component.
  *
  * @package Elevate_Client_Portal
- * @version 12.1.0 (Final Audit & JS Fix)
+ * @version 67.0.0
+ * @comment Fixed a fatal error caused by an incorrect variable call. Changed `$this->file_manager_component->render_table_rows()` to the correct `$this->render_table_rows()` to properly render the user's file list.
  */
 
 if ( ! defined( 'WPINC' ) ) {
@@ -28,8 +29,8 @@ if ( ! defined( 'WPINC' ) ) {
 
             <div class="ecp-controls" style="margin-bottom: 1em; padding: 10px; background: transparent; border: none; justify-content: flex-start;">
                 <div style="flex-grow: 0;">
-                    <label for="ecp-admin-folder-filter"><?php _e('Filter by Folder', 'ecp'); ?></label>
-                    <select id="ecp-admin-folder-filter" data-userid="<?php echo esc_attr($user->ID); ?>">
+                    <label for="ecp-admin-folder-filter-<?php echo esc_attr($user->ID); ?>"><?php _e('Filter by Folder', 'ecp'); ?></label>
+                    <select class="ecp-admin-folder-filter" id="ecp-admin-folder-filter-<?php echo esc_attr($user->ID); ?>" data-userid="<?php echo esc_attr($user->ID); ?>">
                         <option value="all"><?php _e('All Folders', 'ecp'); ?></option><option value="/"><?php _e('Uncategorized', 'ecp'); ?></option>
                         <?php foreach($folders as $folder) { 
                             $folder_name = is_array($folder) ? $folder['name'] : $folder;
@@ -54,15 +55,17 @@ if ( ! defined( 'WPINC' ) ) {
         <div class="ecp-file-manager-forms-col">
             <div class="postbox"><h2 class="hndle"><span><?php _e('Upload New File(s)', 'ecp'); ?></span></h2><div class="inside">
                 <form class="ecp-upload-form" method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="ecp_file_manager_actions">
+                    <input type="hidden" name="sub_action" value="upload_file">
                     <input type="hidden" name="user_id" value="<?php echo esc_attr($user->ID); ?>">
                     
                     <label for="ecp_file_upload_input_<?php echo esc_attr($user->ID); ?>" class="ecp-dropzone-area"><p><?php _e('Drag & Drop files here or click to select', 'ecp'); ?></p></label>
                     <input type="file" id="ecp_file_upload_input_<?php echo esc_attr($user->ID); ?>" class="ecp-file-upload-input" name="ecp_file_upload" multiple style="display:none;">
                     
-                    <div id="ecp-upload-progress-container" style="display:none;"></div>
+                    <div id="ecp-upload-progress-container"></div>
 
                     <p><label for="ecp-upload-folder-select-<?php echo esc_attr($user->ID); ?>"><?php _e('Assign to Folder:', 'ecp'); ?></label><br>
-                    <select name="ecp_file_folder" id="ecp-upload-folder-select-<?php echo esc_attr($user->ID); ?>" class="widefat">
+                    <select name="ecp_file_folder" id="ecp-upload-folder-select-<?php echo esc_attr($user->ID); ?>" class="widefat ecp-upload-folder-select">
                         <option value="/"><?php _e('Uncategorized', 'ecp'); ?></option>
                         <?php foreach ($folders as $folder) { 
                             $folder_name = is_array($folder) ? $folder['name'] : $folder;

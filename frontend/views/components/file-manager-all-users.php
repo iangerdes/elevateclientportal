@@ -4,7 +4,8 @@
  * View template for the "All Users" File Manager component.
  *
  * @package Elevate_Client_Portal
- * @version 24.0.0 (View Loading & Fatal Error Fix)
+ * @version 52.0.0
+ * @comment Added a consistent class 'ecp-folder-source-dropdown' to the folder select element. This allows the JavaScript to reliably find it when populating the "Move Files" modal.
  */
 
 if ( ! defined( 'WPINC' ) ) {
@@ -57,8 +58,8 @@ if ( ! defined( 'WPINC' ) ) {
                     <label for="ecp_file_upload_input_0" class="ecp-dropzone-area"><p><?php _e('Drag & Drop files here or click to select', 'ecp'); ?></p></label>
                     <input type="file" id="ecp_file_upload_input_0" class="ecp-file-upload-input" name="ecp_file_upload" multiple style="display:none;">
                     <div id="ecp-upload-progress-container"></div>
-                    <p><label for="ecp-upload-folder-select"><?php _e('Assign to Folder:', 'ecp'); ?></label><br>
-                    <select name="ecp_file_folder" id="ecp-upload-folder-select" class="widefat"><option value="/"><?php _e('Uncategorized', 'ecp'); ?></option><?php foreach ($folders as $folder) { $folder_name = is_array($folder) ? $folder['name'] : $folder; echo '<option value="'.esc_attr($folder_name).'">'.esc_html($folder_name).'</option>'; } ?></select></p>
+                    <p><label for="ecp-upload-folder-select-0"><?php _e('Assign to Folder:', 'ecp'); ?></label><br>
+                    <select name="ecp_file_folder" id="ecp-upload-folder-select-0" class="widefat ecp-folder-source-dropdown"><option value="/"><?php _e('Uncategorized', 'ecp'); ?></option><?php foreach ($folders as $folder) { $folder_name = is_array($folder) ? $folder['name'] : $folder; echo '<option value="'.esc_attr($folder_name).'">'.esc_html($folder_name).'</option>'; } ?></select></p>
                     <div class="ecp-encryption-section">
                         <p><label><input type="checkbox" class="ecp-encrypt-toggle" name="ecp_encrypt_toggle"> <?php _e('Encrypt this file?', 'ecp'); ?></label></p>
                         <div class="ecp-password-fields" style="display:none;">

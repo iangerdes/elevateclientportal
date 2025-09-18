@@ -5,7 +5,8 @@
  * primarily WordPress nonces for verifying AJAX requests.
  *
  * @package Elevate_Client_Portal
- * @version 40.0.0 (Full Refactor)
+ * @version 71.0.0 (Final Audit)
+ * @comment Final Audit: Added a `verify_nonce_or_die` method for cleaner, more secure AJAX handling. Consolidated nonce keys for maintainability.
  */
 
 if ( ! defined( 'WPINC' ) ) {
@@ -23,12 +24,7 @@ class ECP_Security_Helper {
         'admin_settings' => 'ecp_admin_ajax_nonce',
         'update_account' => 'ecp_update_account_nonce',
         'contact_manager' => 'ecp_contact_manager_nonce',
-        'login' => 'ecp-login-nonce-action',
-        'logout' => 'ecp_logout_nonce',
-        'download_file' => 'ecp_download_file_nonce',
-        'download_zip' => 'ecp_zip_download_nonce',
-        'impersonate' => 'ecp_impersonate_nonce',
-        'stop_impersonate' => 'ecp_stop_impersonate_nonce',
+        'zip' => 'ecp_zip_nonce',
     ];
 
     /**
@@ -54,6 +50,15 @@ class ECP_Security_Helper {
     }
 
     /**
+     * Verifies a nonce and sends a JSON error on failure.
+     */
+    public static function verify_nonce_or_die( $action, $nonce_key = 'nonce' ) {
+        if ( ! self::verify_nonce($action, $nonce_key) ) {
+            wp_send_json_error(['message' => __('Security check failed.', 'ecp')]);
+        }
+    }
+
+    /**
      * Generates an array of all nonces needed for a frontend script.
      *
      * @param array $actions A list of action keys to generate nonces for.
@@ -62,8 +67,9 @@ class ECP_Security_Helper {
     public static function get_script_nonces( $actions ) {
         $nonces = [];
         foreach ( $actions as $action ) {
-            $key = str_replace( '_', '', ucwords( $action, '_' ) ) . 'Nonce';
-            $nonces[ lcfirst( $key ) ] = self::create_nonce( $action );
+            // Converts 'some_action' to 'someActionNonce' for JavaScript.
+            $key = lcfirst( str_replace( ' ', '', ucwords( str_replace( '_', ' ', $action ) ) ) ) . 'Nonce';
+            $nonces[ $key ] = self::create_nonce( $action );
         }
         return $nonces;
     }

@@ -4,7 +4,8 @@
  * progress bars, and queue management.
  *
  * @package Elevate_Client_Portal
- * @version 42.0.0 (Final Audit & Refactor)
+ * @version 66.0.0
+ * @comment Fixed progress bar visibility. The script now explicitly shows the progress container as soon as files are added to the queue, ensuring the user gets immediate feedback.
  */
 
 jQuery(function ($) {
@@ -12,9 +13,55 @@ jQuery(function ($) {
     let fileQueue = [];
     let isUploading = false;
 
-    function addToQueue(file, form) {
+    // This setup function ensures event handlers are not bound multiple times.
+    function setupUploaderEvents(context) {
+        const uploaderForms = $(context).find('.ecp-upload-form');
+        
+        // Unbind any previous uploader events from this context to prevent duplicates.
+        uploaderForms.off('.uploader');
+        mainContentArea.off('.uploaderDropzone');
+
+        uploaderForms.on('change.uploader', '.ecp-file-upload-input', function(e) {
+            const form = $(this).closest('form');
+            const progressContainer = form.find('#ecp-upload-progress-container').show();
+            $.each(e.target.files, (i, file) => {
+                file.queueId = new Date().getTime() + i;
+                addToQueue(file, progressContainer);
+            });
+            if (!isUploading) processQueue(form);
+        });
+
+        uploaderForms.on('change.uploader', '.ecp-encrypt-toggle', function() {
+            $(this).closest('.ecp-encryption-section').find('.ecp-password-fields').slideToggle($(this).is(':checked'));
+        });
+        
+        mainContentArea.on('dragover.uploaderDropzone', '.ecp-dropzone-area', function(e) {
+            e.preventDefault(); e.stopPropagation(); $(this).addClass('dragover');
+        });
+
+        mainContentArea.on('dragleave.uploaderDropzone', '.ecp-dropzone-area', function(e) {
+            e.preventDefault(); e.stopPropagation(); $(this).removeClass('dragover');
+        });
+
+        mainContentArea.on('drop.uploaderDropzone', '.ecp-dropzone-area', function(e) {
+            e.preventDefault(); e.stopPropagation(); $(this).removeClass('dragover');
+            const form = $(this).closest('form');
+            const progressContainer = form.find('#ecp-upload-progress-container').show();
+            const files = e.originalEvent.dataTransfer.files;
+            $.each(files, (i, file) => {
+                file.queueId = new Date().getTime() + i;
+                addToQueue(file, progressContainer);
+            });
+            if (!isUploading) processQueue(form);
+        });
+        
+        mainContentArea.on('click.uploaderDropzone', '.ecp-dropzone-area', function() {
+            $(this).closest('form').find('.ecp-file-upload-input').trigger('click');
+        });
+    }
+
+    function addToQueue(file, progressContainer) {
         fileQueue.push(file);
-        const progressContainer = form.find('#ecp-upload-progress-container');
         progressContainer.append(`
             <div class="ecp-progress-item" id="file-${file.queueId}">
                 <div class="ecp-progress-filename">${file.name}</div>
@@ -28,35 +75,20 @@ jQuery(function ($) {
     function processQueue(form) {
         if (isUploading || fileQueue.length === 0) {
             if (!isUploading) { 
-                refreshFileManager(form.find('input[name="user_id"]').val());
+                setTimeout(() => {
+                    refreshFileManager(form.find('input[name="user_id"]').val());
+                }, 1000); // Add a small delay to ensure server has processed the file
             }
             return;
         }
 
         isUploading = true;
         const file = fileQueue.shift();
-        const userId = form.find('input[name="user_id"]').val();
-        const folder = form.find('select[name="ecp_file_folder"]').val();
-        const encrypt = form.find('input.ecp-encrypt-toggle').is(':checked');
-        const password = form.find('input#ecp-encrypt-password').val();
-        const notify = form.find('input[name="ecp_notify_client"]').is(':checked');
-
-        const formData = new FormData();
-        formData.append('action', 'ecp_file_manager_actions');
-        formData.append('nonce', ecp_ajax.nonces.fileManagerNonce);
-        formData.append('sub_action', 'upload_file');
-        formData.append('user_id', userId);
-        formData.append('ecp_file_folder', folder);
+        
+        const formData = new FormData(form[0]);
         formData.append('ecp_file_upload', file);
         formData.append('original_filename', file.name);
-
-        if (notify) {
-            formData.append('ecp_notify_client', '1');
-        }
-        if (encrypt && password) {
-            formData.append('ecp_encrypt_toggle', '1');
-            formData.append('ecp_encrypt_password', password);
-        }
+        formData.set('nonce', ecp_ajax.nonces.fileManagerNonce); // Ensure nonce is set correctly for AJAX calls
 
         $.ajax({
             url: ecp_ajax.ajax_url,
@@ -85,46 +117,34 @@ jQuery(function ($) {
         });
     }
 
-    mainContentArea.on('change.uploader', '.ecp-file-upload-input', function(e) {
-        const form = $(this).closest('form');
-        $.each(e.target.files, (i, file) => {
-            file.queueId = new Date().getTime() + i;
-            addToQueue(file, form);
-        });
-        processQueue(form);
+    // Use a MutationObserver to re-apply events when the view changes.
+    const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+            if (mutation.addedNodes.length) {
+                // Check if a file manager view was added
+                if ($(mutation.target).find('.ecp-file-manager').length > 0) {
+                    setupUploaderEvents(mutation.target);
+                    // Disconnect and reconnect to avoid observing our own changes
+                    observer.disconnect();
+                    // Re-observe after a short delay
+                    setTimeout(() => observeDashboard(), 0);
+                    break;
+                }
+            }
+        }
     });
 
-    mainContentArea.on('dragover.uploader', '.ecp-dropzone-area', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        $(this).addClass('dragover');
-    });
-
-    mainContentArea.on('dragleave.uploader', '.ecp-dropzone-area', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        $(this).removeClass('dragover');
-    });
-
-    mainContentArea.on('drop.uploader', '.ecp-dropzone-area', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        $(this).removeClass('dragover');
-        const form = $(this).closest('form');
-        const files = e.originalEvent.dataTransfer.files;
-        $.each(files, (i, file) => {
-            file.queueId = new Date().getTime() + i;
-            addToQueue(file, form);
-        });
-        processQueue(form);
-    });
+    function observeDashboard() {
+        if (document.getElementById('ecp-dashboard-main-content')) {
+            observer.observe(document.getElementById('ecp-dashboard-main-content'), {
+                childList: true,
+                subtree: true
+            });
+        }
+    }
     
-    mainContentArea.on('click.uploader', '.ecp-dropzone-area', function() {
-        $(this).closest('form').find('.ecp-file-upload-input').trigger('click');
-    });
-
-    mainContentArea.on('change.uploader', '.ecp-encrypt-toggle', function() {
-        $(this).closest('.ecp-encryption-section').find('.ecp-password-fields').slideToggle($(this).is(':checked'));
-    });
+    // Initial setup
+    setupUploaderEvents(mainContentArea);
+    observeDashboard();
 });
 

@@ -19,20 +19,32 @@ if ( ! defined( 'WPINC' ) ) {
 class ECP_User_Manager {
 
     /**
-     * Retrieves a list of client and manager users for the admin dashboard.
+     * Retrieves a list of client and manager users for the admin dashboard, respecting the current user's role.
      */
     public static function get_client_users( $search_term = '' ) {
         $args = ['orderby' => 'display_name', 'order'   => 'ASC', 'number'  => -1];
-        $current_user = wp_get_current_user();
+        $current_user_id = get_current_user_id();
+        $current_user = get_userdata($current_user_id);
 
         if ( in_array('administrator', $current_user->roles) ) {
+            // Administrators can see all relevant user roles.
             $args['role__in'] = ['ecp_client', 'scp_client', 'ecp_client_manager', 'ecp_business_admin', 'administrator'];
         } elseif ( in_array('ecp_business_admin', $current_user->roles) ) {
+            // Business Admins see all clients, client managers, and other business admins.
             $args['role__in'] = ['ecp_client', 'scp_client', 'ecp_client_manager', 'ecp_business_admin'];
-        } else { // ecp_client_manager
+        } elseif ( in_array('ecp_client_manager', $current_user->roles) ) {
+            // Client Managers ONLY see the clients specifically assigned to them.
             $args['role__in'] = ['ecp_client', 'scp_client'];
-            $args['meta_key'] = '_ecp_managed_by';
-            $args['meta_value'] = get_current_user_id();
+            $args['meta_query'] = [
+                [
+                    'key' => '_ecp_managed_by',
+                    'value' => $current_user_id,
+                    'compare' => '='
+                ]
+            ];
+        } else {
+            // If the user doesn't have a recognized management role, return an empty list.
+            return [];
         }
 
         if (!empty($search_term)) {
@@ -73,26 +85,30 @@ class ECP_User_Manager {
         $user_id = wp_create_user( $email, $password, $email );
         
         if ( is_wp_error( $user_id ) ) { return ['success' => false, 'message' => $user_id->get_error_message()]; }
+        
+        $creator_id = get_current_user_id();
+        $role = sanitize_text_field($data['ecp_user_role'] ?? 'ecp_client');
 
         wp_update_user([
             'ID' => $user_id, 
             'first_name' => sanitize_text_field( $data['ecp_user_firstname'] ),
             'last_name' => sanitize_text_field( $data['ecp_user_surname'] ),
             'display_name' => sanitize_text_field( $data['ecp_user_firstname'] ) . ' ' . sanitize_text_field( $data['ecp_user_surname'] ),
-            'role' => sanitize_text_field($data['ecp_user_role'] ?? 'ecp_client'),
+            'role' => $role,
         ]);
 
+        update_user_meta( $user_id, '_ecp_created_by', $creator_id );
         update_user_meta($user_id, 'ecp_user_title', sanitize_text_field($data['ecp_user_title']));
         update_user_meta($user_id, 'ecp_user_address', sanitize_textarea_field($data['ecp_user_address']));
         update_user_meta($user_id, 'ecp_user_mobile', sanitize_text_field($data['ecp_user_mobile']));
         
-        if (isset($data['ecp_user_role'])) {
-            if ($data['ecp_user_role'] === 'ecp_business_admin' && isset($data['ecp_user_limit'])) {
-                update_user_meta($user_id, '_ecp_user_limit', intval($data['ecp_user_limit']));
-            }
-            if ($data['ecp_user_role'] === 'ecp_client' && isset($data['ecp_managed_by'])) {
-                update_user_meta($user_id, '_ecp_managed_by', intval($data['ecp_managed_by']));
-            }
+        if ($role === 'ecp_business_admin' && isset($data['ecp_user_limit'])) {
+            update_user_meta($user_id, '_ecp_user_limit', intval($data['ecp_user_limit']));
+        }
+        if ($role === 'ecp_client' || $role === 'scp_client') {
+            // If a manager is specified (by an Admin), use it. Otherwise, assign the creator.
+            $manager_id = isset($data['ecp_managed_by']) ? intval($data['ecp_managed_by']) : $creator_id;
+            update_user_meta($user_id, '_ecp_managed_by', $manager_id);
         }
         
         if ( ! empty( $data['ecp_send_notification'] ) ) {

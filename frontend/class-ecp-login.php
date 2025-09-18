@@ -1,71 +1,37 @@
 <?php
+// File: elevate-client-portal/frontend/class-ecp-login.php
 /**
  * Handles all logic for the [elevate_login] shortcode.
- * Version: 5.0.2
+ * @package Elevate_Client_Portal
+ * @version 80.0.0 (Final Stable Asset Loading)
+ * @comment This shortcode now "requests" its scripts from the Asset Manager, which will then reliably load them in the footer. This is the definitive fix for all script loading issues.
  */
 class ECP_Login {
 
     private static $instance;
-    public static function get_instance() { if ( null === self::$instance ) { self::$instance = new self(); } return self::$instance; }
-
-    private function __construct() {
-        add_shortcode( 'elevate_login', [ $this, 'render_shortcode' ] );
-        add_action( 'init', [ $this, 'handle_custom_login_submission' ] );
+    private $plugin_path;
+    private $plugin_url;
+    
+    public static function get_instance( $path, $url ) { 
+        if ( null === self::$instance ) { 
+            self::$instance = new self( $path, $url ); 
+        } 
+        return self::$instance; 
     }
 
-    /**
-     * Handles the submission of the custom login form.
-     */
-    public function handle_custom_login_submission() {
-        if ( isset( $_POST['elevate_login_form'] ) && 'POST' === $_SERVER['REQUEST_METHOD'] ) {
-            if ( ! isset( $_POST['ecp_login_nonce'] ) || ! wp_verify_nonce( $_POST['ecp_login_nonce'], 'ecp-login-nonce-action' ) ) {
-                wp_die('Security check failed.');
-            }
-
-            $referrer = isset($_POST['_wp_http_referer']) ? esc_url_raw(wp_unslash($_POST['_wp_http_referer'])) : home_url('/login/');
-            
-            if ( empty($_POST['log']) || empty($_POST['pwd']) ) {
-                $referrer = remove_query_arg('login', $referrer);
-                wp_safe_redirect(add_query_arg('login', 'empty', $referrer));
-                exit;
-            }
-
-            $creds = [
-                'user_login'    => sanitize_user( $_POST['log'] ),
-                'user_password' => $_POST['pwd'],
-                'remember'      => isset( $_POST['rememberme'] ),
-            ];
-
-            $user = wp_signon( $creds, is_ssl() );
-
-            if ( is_wp_error( $user ) ) {
-                $error_code = 'failed';
-                $user_check = get_user_by('email', $creds['user_login']) ?: get_user_by('login', $creds['user_login']);
-                if ( $user_check && get_user_meta( $user_check->ID, 'ecp_user_disabled', true ) ) {
-                    $error_code = 'disabled';
-                }
-                
-                $referrer = remove_query_arg('login', $referrer);
-                wp_safe_redirect(add_query_arg('login', $error_code, $referrer));
-                exit;
-            } else {
-                $redirect_to = isset($_REQUEST['redirect_to']) && !empty($_REQUEST['redirect_to']) ? $_REQUEST['redirect_to'] : home_url();
-                $redirect_url = apply_filters( 'login_redirect', $redirect_to, (isset($_REQUEST['redirect_to']) ? $_REQUEST['redirect_to'] : ''), $user );
-                wp_safe_redirect( $redirect_url );
-                exit;
-            }
-        }
+    private function __construct( $path, $url ) {
+        $this->plugin_path = $path;
+        $this->plugin_url = $url;
+        add_shortcode( 'elevate_login', [ $this, 'render_shortcode' ] );
     }
     
-    /**
-     * Renders the login form shortcode and displays any errors.
-     * FIX: Replaced wp_logout_url with a custom URL to trigger our handler.
-     */
     public function render_shortcode() {
+        // Request the scripts and styles required for this shortcode.
+        ECP_Asset_Manager::get_instance( ECP_PLUGIN_PATH, ECP_PLUGIN_URL )->request_login_suite();
+        
         if ( is_user_logged_in() ) {
             $user = wp_get_current_user();
             $allowed_admin_roles = ['ecp_business_admin', 'administrator', 'ecp_client_manager'];
-            // Use our custom logout URL generator
             $logout_url = wp_nonce_url( home_url( '/?action=ecp_logout' ), 'ecp_logout_nonce' );
 
             if( count(array_intersect($allowed_admin_roles, $user->roles)) > 0 ) {
@@ -123,9 +89,9 @@ class ECP_Login {
                     <?php wp_nonce_field( 'ecp-login-nonce-action', 'ecp_login_nonce' ); ?>
                 </p>
             </form>
-
         </div>
         <?php
         return ob_get_clean();
     }
 }
+

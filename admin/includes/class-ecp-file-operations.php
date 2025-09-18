@@ -141,6 +141,32 @@ class ECP_File_Operations {
         return ['success' => false, 'message' => __( 'The physical file could not be deleted from storage.', 'ecp' )];
     }
     
+    /**
+     * Retrieves the raw contents of a file from either local storage or S3.
+     *
+     * @param array $file_data The file's metadata array.
+     * @return string|WP_Error The file contents on success, or a WP_Error on failure.
+     */
+    public static function get_file_contents( $file_data ) {
+        if ( ! is_array( $file_data ) ) {
+            return new WP_Error( 'invalid_argument', 'Invalid file data provided.' );
+        }
+
+        $s3_handler = ECP_S3::get_instance();
+        
+        if ( ! empty( $file_data['s3_key'] ) && $s3_handler->is_s3_enabled() ) {
+            return $s3_handler->get_file_contents( $file_data['s3_key'] );
+        } elseif ( ! empty( $file_data['path'] ) && file_exists( $file_data['path'] ) ) {
+            $contents = file_get_contents( $file_data['path'] );
+            if ( $contents === false ) {
+                return new WP_Error( 'read_error', 'Could not read local file.' );
+            }
+            return $contents;
+        }
+
+        return new WP_Error( 'not_found', 'File source not found in storage.' );
+    }
+    
     public static function encrypt_file_contents($contents, $password) {
         $key = hash('sha256', $password);
         $iv_length = openssl_cipher_iv_length(self::ENCRYPTION_METHOD);
@@ -161,4 +187,3 @@ class ECP_File_Operations {
         return openssl_decrypt($encrypted, self::ENCRYPTION_METHOD, $key, 0, $iv);
     }
 }
-

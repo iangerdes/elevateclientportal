@@ -27,7 +27,6 @@ if ( ! defined( 'WPINC' ) ) {
         <input type="hidden" name="user_id" value="<?php echo esc_attr($user_id); ?>">
         <input type="hidden" name="action" value="ecp_admin_dashboard_actions">
         <input type="hidden" name="sub_action" value="<?php echo $is_new_user ? 'add_user' : 'save_user'; ?>">
-        <?php // ** FIX: The nonce is now added reliably by JavaScript, so the wp_nonce_field is removed from here. ** ?>
         <table class="form-table"><tbody>
             <tr><th scope="row"><label for="ecp_user_title"><?php _e('Title', 'ecp'); ?></label></th><td><select name="ecp_user_title" id="ecp_user_title" class="regular-text"><?php $titles=['Mr','Mrs','Miss','Ms','Dr']; $current_title = $user ? get_user_meta($user_id,'ecp_user_title',true) : ''; foreach($titles as $title){echo '<option value="'.esc_attr($title).'" '.selected($current_title,$title,false).'>'.esc_html($title).'</option>';}?></select></td></tr>
             <tr><th scope="row"><label for="ecp_user_firstname"><?php _e('First Name', 'ecp'); ?></label></th><td><input type="text" id="ecp_user_firstname" name="ecp_user_firstname" class="regular-text" value="<?php echo $user ? esc_attr($user->first_name) : ''; ?>" required /></td></tr>
@@ -42,10 +41,7 @@ if ( ! defined( 'WPINC' ) ) {
                 </td>
             </tr>
             
-            <?php 
-            $current_user_roles = wp_get_current_user()->roles;
-            if ( in_array('administrator', $current_user_roles) || in_array('ecp_business_admin', $current_user_roles) ): 
-            ?>
+            <?php if ( current_user_can('promote_users') ): ?>
                 <tr><th scope="row"><label for="ecp_user_role"><?php _e('Role', 'ecp'); ?></label></th><td>
                     <select name="ecp_user_role" id="ecp_user_role">
                         <option value="ecp_client" <?php if($user) selected('ecp_client', $user->roles[0]); ?>><?php _e('Client', 'ecp'); ?></option>
@@ -53,27 +49,26 @@ if ( ! defined( 'WPINC' ) ) {
                         <option value="ecp_business_admin" <?php if($user) selected('ecp_business_admin', $user->roles[0]); ?>><?php _e('Business Admin', 'ecp'); ?></option>
                     </select>
                 </td></tr>
+
                 <tr class="ecp-business-admin-field" style="display:none;"><th scope="row"><label for="ecp_user_limit"><?php _e('Client Limit', 'ecp'); ?></label></th><td>
                     <input type="number" name="ecp_user_limit" id="ecp_user_limit" value="<?php echo $user ? esc_attr(get_user_meta($user_id, '_ecp_user_limit', true)) : '0'; ?>" class="small-text" />
                     <p class="description"><?php _e('The number of clients this Business Admin can create. 0 for unlimited.', 'ecp'); ?></p>
                 </td></tr>
-                <?php
-                $is_client = $user && (in_array('ecp_client', $user->roles) || in_array('scp_client', $user->roles));
-                if ( $is_client ):
+
+                <tr class="ecp-client-field" style="display:none;"><th scope="row"><label for="ecp_managed_by"><?php _e('Managed By', 'ecp'); ?></label></th><td>
+                    <?php
                     $managers = get_users(['role__in' => ['administrator', 'ecp_business_admin', 'ecp_client_manager'], 'orderby' => 'display_name', 'order' => 'ASC']);
-                    $current_manager_id = get_user_meta($user_id, '_ecp_managed_by', true) ?: get_user_meta($user_id, '_ecp_created_by', true);
-                ?>
-                    <tr class="ecp-client-field"><th scope="row"><label for="ecp_managed_by"><?php _e('Managed By', 'ecp'); ?></label></th><td>
-                        <select name="ecp_managed_by" id="ecp_managed_by">
-                            <?php foreach ($managers as $manager): ?>
-                                <option value="<?php echo esc_attr($manager->ID); ?>" <?php selected($current_manager_id, $manager->ID); ?>>
-                                    <?php echo esc_html($manager->display_name); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <p class="description"><?php _e('Assign a Business Admin or Administrator to manage this client.', 'ecp'); ?></p>
-                    </td></tr>
-                <?php endif; ?>
+                    $current_manager_id = $is_new_user ? get_current_user_id() : (get_user_meta($user_id, '_ecp_managed_by', true) ?: get_user_meta($user_id, '_ecp_created_by', true));
+                    ?>
+                    <select name="ecp_managed_by" id="ecp_managed_by">
+                        <?php foreach ($managers as $manager): ?>
+                            <option value="<?php echo esc_attr($manager->ID); ?>" <?php selected($current_manager_id, $manager->ID); ?>>
+                                <?php echo esc_html($manager->display_name); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <p class="description"><?php _e('Assign a manager to this client.', 'ecp'); ?></p>
+                </td></tr>
             <?php endif; ?>
 
             <tr><th scope="row"><label for="ecp_user_password"><?php _e('Password', 'ecp'); ?></label></th><td><input type="password" name="ecp_user_password" id="ecp_user_password" class="regular-text" placeholder="<?php echo $is_new_user ? __('Auto-generated if blank', 'ecp') : __('Leave blank to keep current', 'ecp'); ?>" autocomplete="new-password" /></td></tr>
@@ -86,22 +81,3 @@ if ( ! defined( 'WPINC' ) ) {
         <p class="submit"><button type="submit" class="button button-primary"><?php echo $is_new_user ? __('Add User', 'ecp') : __('Save Changes', 'ecp'); ?></button></p>
     </form>
 </div>
-<script>
-    jQuery(document).ready(function($) {
-        function toggleFields() {
-            var selectedRole = $('#ecp_user_role').val();
-            if ( selectedRole === 'ecp_business_admin' ) {
-                $('.ecp-business-admin-field').show();
-                $('.ecp-client-field').hide();
-            } else if ( selectedRole === 'ecp_client' || selectedRole === 'scp_client' ) {
-                 $('.ecp-business-admin-field').hide();
-                $('.ecp-client-field').show();
-            } else {
-                $('.ecp-business-admin-field').hide();
-                $('.ecp-client-field').hide();
-            }
-        }
-        toggleFields();
-        $('#ecp_user_role').on('change', toggleFields);
-    });
-</script>

@@ -3,7 +3,8 @@
  * Handles all AJAX logic for the front-end client portal view.
  *
  * @package Elevate_Client_Portal
- * @version 43.0.0 (Final Audit & Refactor)
+ * @version 63.0.0
+ * @comment Fixed encrypted file download. The security nonce is now correctly sent in the POST body as a hidden field, rather than in the URL, to resolve the "Security check failed" error.
  */
 jQuery(function ($) {
     const portalWrapper = $('body').find('.ecp-portal-wrapper');
@@ -117,6 +118,19 @@ jQuery(function ($) {
           .always(() => btn.prop('disabled', false).text('Download Selected as ZIP'));
     });
 
+    $('body').on('click', '#ecp-copy-zip-password', function() {
+        const passwordText = $('#ecp-zip-password').text();
+        const tempInput = $('<input>');
+        $('body').append(tempInput);
+        tempInput.val(passwordText).select();
+        document.execCommand('copy');
+        tempInput.remove();
+
+        const originalText = $(this).text();
+        $(this).text(ecp_ajax.strings.copied);
+        setTimeout(() => $(this).text(originalText), 1500);
+    });
+
     $('body').on('click', '.ecp-download-encrypted-btn', function(e) {
         e.preventDefault();
         const password = prompt(ecp_ajax.strings.decrypt_prompt);
@@ -124,14 +138,16 @@ jQuery(function ($) {
             const fileKey = $(this).data('filekey');
             const form = $('<form>', {
                 'method': 'POST',
-                'action': `${ecp_ajax.home_url}?ecp_action=download_decrypted_file&file_key=${encodeURIComponent(fileKey)}&nonce=${ecp_ajax.nonces.decryptFileNonce}`
-            }).append($('<input>', { 'type': 'hidden', 'name': 'password', 'value': password }));
+                'action': `${ecp_ajax.home_url}?ecp_action=download_decrypted_file&file_key=${encodeURIComponent(fileKey)}`
+            })
+            .append($('<input>', { 'type': 'hidden', 'name': 'password', 'value': password }))
+            .append($('<input>', { 'type': 'hidden', 'name': 'nonce', 'value': ecp_ajax.nonces.decryptFileNonce }));
+            
             $('body').append(form);
             form.submit().remove();
         }
     });
 
-    // Account Page & Contact Form (No changes needed, included for completeness)
     $('body').on('click', '#ecp-contact-manager-toggle', () => $('#ecp-contact-manager-form-wrapper').slideToggle(200));
     $('body').on('submit', '#ecp-contact-manager-form', function(e) {
         e.preventDefault();
