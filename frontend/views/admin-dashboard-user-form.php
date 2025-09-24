@@ -75,6 +75,7 @@ if ( ! defined( 'WPINC' ) ) {
             <?php endif; ?>
 
             <tr><th scope="row"><label for="ecp_user_password"><?php _e('Password', 'ecp'); ?></label></th><td><input type="password" name="ecp_user_password" id="ecp_user_password" class="regular-text" placeholder="<?php echo $is_new_user ? __('Auto-generated if blank', 'ecp') : __('Leave blank to keep current', 'ecp'); ?>" autocomplete="new-password" /></td></tr>
+            <tr><th scope="row"><label for="ecp_user_password_confirm"><?php _e('Confirm Password', 'ecp'); ?></label></th><td><input type="password" name="ecp_user_password_confirm" id="ecp_user_password_confirm" class="regular-text" placeholder="<?php _e('Confirm new password', 'ecp'); ?>" autocomplete="new-password" /></td></tr>
             <tr><th scope="row"><label for="ecp_user_address"><?php _e('Address', 'ecp'); ?></label></th><td><textarea name="ecp_user_address" id="ecp_user_address" class="large-text" rows="3"><?php echo $user ? esc_textarea(get_user_meta($user_id, 'ecp_user_address', true)) : ''; ?></textarea></td></tr>
             <tr><th scope="row"><label for="ecp_user_mobile"><?php _e('Mobile', 'ecp'); ?></label></th><td><input type="tel" name="ecp_user_mobile" id="ecp_user_mobile" class="regular-text" value="<?php echo $user ? esc_attr(get_user_meta($user_id, 'ecp_user_mobile', true)) : ''; ?>" /></td></tr>
             <?php if($is_new_user): ?>
@@ -84,4 +85,3 @@ if ( ! defined( 'WPINC' ) ) {
         <p class="submit"><button type="submit" class="button button-primary"><?php echo $is_new_user ? __('Add User', 'ecp') : __('Save Changes', 'ecp'); ?></button></p>
     </form>
 </div>
-
