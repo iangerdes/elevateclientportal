@@ -36,6 +36,7 @@ final class Elevate_Client_Portal_Init {
         register_activation_hook( __FILE__, [ $this, 'activate' ] );
         register_deactivation_hook( __FILE__, [ $this, 'deactivate' ] );
         add_action('plugins_loaded', [ $this, 'init_plugin' ]);
+        add_action('init', [ $this, 'load_textdomain' ]); // ** FIX: Load textdomain on the correct hook. **
     }
 
     public function init_plugin() {
@@ -52,7 +53,7 @@ final class Elevate_Client_Portal_Init {
         ECP_User_Manager::register_custom_roles();
 
         $this->init_components();
-        $this->load_textdomain();
+        // ** REMOVED: Textdomain is now loaded on the 'init' hook. **
     }
     
     private function load_dependencies() {
@@ -136,4 +137,3 @@ final class Elevate_Client_Portal_Init {
 }
 
 Elevate_Client_Portal_Init::get_instance();
-
